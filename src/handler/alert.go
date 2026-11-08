@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"grafana-alert-to-telegram/src/service"
+	"io"
 	"net/http"
 )
 
@@ -14,7 +15,8 @@ func HandleAlert(w http.ResponseWriter, req *http.Request) {
 	errCh := make(chan error)
 	var body []byte
 	go func() {
-		_, err := req.Body.Read(body)
+		var err error
+		body, err = io.ReadAll(req.Body)
 		if ctx.Err() == nil {
 			errCh <- err
 		}

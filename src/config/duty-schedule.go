@@ -15,32 +15,18 @@ func getDutySchedule(path string) ([]*domain.DutyNotif, error) {
 		return nil, err
 	}
 
-	var scheduleData []any
+	var scheduleData []domain.DutyNotifInput
 	if err = json.Unmarshal(rawJSONData, &scheduleData); err != nil {
 		return nil, err
 	}
 
 	var schedule []*domain.DutyNotif
-	for _, notifAny := range scheduleData {
-		notifData, ok := notifAny.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("getDutySchedule: duty notif must be object with string keys")
+	for _, notifInput := range scheduleData {
+		date := notifInput.Date
+		if len(date) == 0 {
+			return nil, fmt.Errorf("getDutySchedule: date must be non-empty in duty notif")
 		}
-
-		var (
-			newNotif domain.DutyNotif
-			valid    bool
-		)
-
-		dateAny, ok := notifData["date"]
-		if !ok {
-			return nil, fmt.Errorf("getDutySchedule: date must be configured in duty notif")
-		}
-		date, ok := dateAny.(string)
-		if !ok {
-			return nil, fmt.Errorf("getDutySchedule: date must be string in duty notif")
-		}
-		valid, err = util.ValidDate(date)
+		valid, err := util.ValidDate(date)
 		if err != nil {
 			return nil, fmt.Errorf("getDutySchedule: validDate: %v", err)
 		}
@@ -48,16 +34,11 @@ func getDutySchedule(path string) ([]*domain.DutyNotif, error) {
 			return nil, fmt.Errorf("getDutySchedule: invalid date in duty notif")
 		}
 
-		timeAny, ok := notifData["time"]
-		var notifTime string
-		if !ok {
+		notifTime := notifInput.Time
+		if len(notifTime) == 0 {
 			notifTime = "00:00"
 		} else {
-			notifTime, ok = timeAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("getDutySchedule: time must be string in duty notif")
-			}
-			valid, err = util.ValidNotifTime(notifTime)
+			valid, err := util.ValidNotifTime(notifTime)
 			if err != nil {
 				return nil, fmt.Errorf("getDutySchedule: validTime: %v", err)
 			}
@@ -66,16 +47,11 @@ func getDutySchedule(path string) ([]*domain.DutyNotif, error) {
 			}
 		}
 
-		timezoneAny, ok := notifData["timezone"]
-		var timezone string
-		if !ok {
+		timezone := notifInput.Timezone
+		if len(timezone) == 0 {
 			timezone = "UTC+00:00"
 		} else {
-			timezone, ok = timezoneAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("getDutySchedule: timezone must be string in duty notif")
-			}
-			valid, err = util.ValidTimezone(timezone)
+			valid, err := util.ValidTimezone(timezone)
 			if err != nil {
 				return nil, fmt.Errorf("getDutySchedule: validTimezone: %v", err)
 			}
@@ -88,16 +64,10 @@ func getDutySchedule(path string) ([]*domain.DutyNotif, error) {
 		if err != nil {
 			return nil, fmt.Errorf("getDutySchedule: failed to parse time from string: %v %v %v", date, notifTime, timezone)
 		}
-		newNotif.Date = timeParsed
 
-		repeatAny, ok := notifData["repeat"]
-		var repeat string
-		if ok {
-			repeat, ok = repeatAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("getDutySchedule: repeat must be string in duty notif")
-			}
-			valid, err = util.ValidRepeat(repeat)
+		repeat := notifInput.Repeat
+		if len(repeat) != 0 {
+			valid, err := util.ValidRepeat(repeat)
 			if err != nil {
 				return nil, fmt.Errorf("getDutySchedule: validRepeat: %v", err)
 			}
@@ -105,27 +75,17 @@ func getDutySchedule(path string) ([]*domain.DutyNotif, error) {
 				return nil, fmt.Errorf("getDutySchedule: invalid repeat in duty notif")
 			}
 		}
-		newNotif.Repeat = repeat
 
-		usersAny, ok := notifData["users"]
-		if !ok {
-			return nil, fmt.Errorf("getDutySchedule: users must be configured in duty notif")
+		users := notifInput.Users
+		if len(users) == 0 {
+			return nil, fmt.Errorf("getDutySchedule: users must be non-empty in duty notif")
 		}
-		usersAnyArray, ok := usersAny.([]any)
-		if !ok {
-			return nil, fmt.Errorf("getDutySchedule: users must be array")
-		}
-		var users []string
-		for _, userAny := range usersAnyArray {
-			user, ok := userAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("getDutySchedule: user must be string in duty notif users")
-			}
-			users = append(users, user)
-		}
-		newNotif.Users = users
 
-		schedule = append(schedule, &newNotif)
+		schedule = append(schedule, &domain.DutyNotif{
+			Date:   timeParsed,
+			Repeat: repeat,
+			Users:  users,
+		})
 	}
 
 	return schedule, nil

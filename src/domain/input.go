@@ -3,17 +3,17 @@ package domain
 type BotInput struct {
 	Id                     int    `json:"id"`
 	Token                  string `json:"token"`
-	AlertNotifTemplatePath string `json:"alertNotifTemplatePath"`
-	DutyNotifTemplatePath  string `json:"dutyNotifTemplatePath"`
-	DutySchedule           []*DutyNotif
-	Chats                  []*Chat
+	AlertNotifTemplateFile string `json:"alertNotifTemplate"`
+	DutyNotifTemplateFile  string `json:"dutyNotifTemplate"`
+	DutyScheduleFile       string `json:"dutySchedule"`
+	Chats                  []ChatInput
 }
 
 type ChatInput struct {
 	Id                     int    `json:"id"`
-	AlertNotifTemplatePath string `json:"alertNotifTemplatePath"`
-	DutyNotifTemplatePath  string `json:"dutyNotifTemplatePath"`
-	DutySchedule           []*DutyNotif
+	AlertNotifTemplateFile string `json:"alertNotifTemplate"`
+	DutyNotifTemplateFile  string `json:"dutyNotifTemplate"`
+	DutyScheduleFile       string `json:"dutySchedule"`
 }
 
 type DutyNotifInput struct {

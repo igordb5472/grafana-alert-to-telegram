@@ -40,7 +40,7 @@ func GetBots() ([]*domain.Bot, error) {
 		return nil, fmt.Errorf("GetBots: %v", err)
 	}
 
-	bots := make([]*domain.Bot, len(botDirEntries))
+	bots := make([]*domain.Bot, 0, len(botDirEntries))
 	for _, dirEntry := range botDirEntries {
 		botConfigFile := dirEntry.Name()
 		botConfigPath, err := filepath.Abs(botConfigDir + "/" + botConfigFile)
@@ -52,74 +52,50 @@ func GetBots() ([]*domain.Bot, error) {
 			return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 		}
 
-		botData := make(map[string]any)
-		if err = json.Unmarshal(rawJSONData, &botData); err != nil {
+		var botInput domain.BotInput
+		if err = json.Unmarshal(rawJSONData, &botInput); err != nil {
 			return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 		}
 
-		var newBot domain.Bot
-
-		idAny, ok := botData["id"]
+		id := botInput.Id
 		if !ok {
-			return nil, fmt.Errorf("GetBots: bot id must be configured in %v", botConfigFile)
+			return nil, fmt.Errorf("GetBots: bot id must be non-zero in %v", botConfigFile)
 		}
-		idFloat, ok := idAny.(float64)
-		if !ok {
-			return nil, fmt.Errorf("GetBots: bot id must be number in %v", botConfigFile)
-		}
-		id := int(idFloat)
-		if float64(id) != idFloat {
-			return nil, fmt.Errorf("GetBots: bot id must be int in %v", botConfigFile)
-		}
-		newBot.Id = id
 
 		token, ok := os.LookupEnv(fmt.Sprintf("BOT%v_TOKEN", id))
 		if !ok {
 			return nil, fmt.Errorf("GetBots: failed to get token for bot%v from .env in %v", id, botConfigFile)
 		}
-		newBot.Token = token
 
-		var alertNotifTemplatePath string
-		alertNotifTemplateFileAny, ok := botData["alertNotifTemplate"]
-		if ok {
-			alertNotifTemplateFile, ok := alertNotifTemplateFileAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("GetBots: alertNotifTemplate must be string in %v", botConfigFile)
-			}
+		alertNotifTemplatePath := ""
+		alertNotifTemplateFile := botInput.AlertNotifTemplateFile
+		if len(alertNotifTemplateFile) != 0 {
 			if !strings.HasSuffix(alertNotifTemplateFile, ".tmpl") {
 				return nil, fmt.Errorf("GetBots: alertNotifTemplate must end with .tmpl in %v", botConfigFile)
 			}
+			var err error
 			alertNotifTemplatePath, err = filepath.Abs(alertNotifTemplateDir + "/" + alertNotifTemplateFile)
 			if err != nil {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
 		}
-		newBot.AlertNotifTemplatePath = alertNotifTemplatePath
 
-		var dutyNotifTemplatePath string
-		alertNotifTemplateFileAny, ok = botData["dutyNotifTemplate"]
-		if ok {
-			alertNotifTemplateFile, ok := alertNotifTemplateFileAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("GetBots: dutyNotifTemplate must be string in %v", botConfigFile)
-			}
+		dutyNotifTemplatePath := ""
+		alertNotifTemplateFile = botInput.DutyNotifTemplateFile
+		if len(alertNotifTemplateFile) != 0 {
 			if !strings.HasSuffix(alertNotifTemplateFile, ".tmpl") {
 				return nil, fmt.Errorf("GetBots: dutyNotifTemplate must end with .tmpl in %v", botConfigFile)
 			}
+			var err error
 			dutyNotifTemplatePath, err = filepath.Abs(dutyNotifTemplateDir + "/" + alertNotifTemplateFile)
 			if err != nil {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
 		}
-		newBot.DutyNotifTemplatePath = dutyNotifTemplatePath
 
 		var dutySchedule []*domain.DutyNotif
-		dutyScheduleFileAny, ok := botData["dutySchedule"]
-		if ok {
-			dutyScheduleFile, ok := dutyScheduleFileAny.(string)
-			if !ok {
-				return nil, fmt.Errorf("GetBots: dutySchedule must be string in %v", botConfigFile)
-			}
+		dutyScheduleFile := botInput.DutyScheduleFile
+		if len(dutyScheduleFile) != 0 {
 			if !strings.HasSuffix(dutyScheduleFile, ".json") {
 				return nil, fmt.Errorf("GetBots: dutySchedule must end with .json in %v", botConfigFile)
 			}
@@ -132,25 +108,27 @@ func GetBots() ([]*domain.Bot, error) {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
 		}
-		newBot.DutySchedule = dutySchedule
 
 		var chats []*domain.Chat
-		chatsAny, ok := botData["chats"]
-		if !ok {
+		chatsInput := botInput.Chats
+		if len(chatsInput) == 0 {
 			return nil, fmt.Errorf("GetBots: at least one chat must be configured in %v", botConfigFile)
 		} else {
-			chatsAnyArray, ok := chatsAny.([]any)
-			if !ok {
-				return nil, fmt.Errorf("GetBots: chats must be array in %v", botConfigFile)
-			}
-			chats, err = getChats(chatsAnyArray)
+			var err error
+			chats, err = getChats(chatsInput)
 			if err != nil {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
 		}
-		newBot.Chats = chats
 
-		bots = append(bots, &newBot)
+		bots = append(bots, &domain.Bot{
+			Id:                     id,
+			Token:                  token,
+			AlertNotifTemplatePath: alertNotifTemplatePath,
+			DutyNotifTemplatePath:  dutyNotifTemplatePath,
+			DutySchedule:           dutySchedule,
+			Chats:                  chats,
+		})
 	}
 
 	return bots, nil

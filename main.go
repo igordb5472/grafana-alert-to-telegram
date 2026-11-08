@@ -18,7 +18,7 @@ func main() {
 		log.Fatalf("main: %v", err)
 	}
 
-	log.Println("Initialization stage successful")
+	log.Println("Initialization successful")
 
 	http.HandleFunc("/", handler.HandleAlert)
 	log.Fatal(http.ListenAndServe(":8080", nil))
