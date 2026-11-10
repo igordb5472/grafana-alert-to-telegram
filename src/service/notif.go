@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"grafana-alert-to-telegram/src/config"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"text/template"
 )
@@ -71,31 +73,32 @@ func SendAllAlertNotifs(ctx context.Context, data map[string]any) error {
 	}
 	errCh := make(chan error, errChLen)
 
-	for len(localErrChans) > 0 {
-		for localErrCh := range localErrChans {
+	var wg sync.WaitGroup
+	for localErrCh := range localErrChans {
+		wg.Go(func() {
 			select {
 			case err, ok := <-localErrCh:
 				if !ok {
 					delete(localErrChans, localErrCh)
 				} else {
-					if ctx.Err() != nil {
-						if ctx.Err() == context.DeadlineExceeded {
-							return fmt.Errorf("ScheduleAllDutyNotifs: request timeout exceeded")
-						} else {
-							return fmt.Errorf("ScheduleAllDutyNotifs: request cancelled")
-						}
+					if ctx.Err() == nil {
+						errCh <- err
 					}
-					errCh <- err
 				}
-			default:
+			case <-ctx.Done():
+				return
 			}
-		}
+		})
 	}
+	go func() {
+		wg.Wait()
+		close(errCh)
+	}()
 
 	var errFull error
 	for err := range errCh {
 		if err != nil {
-			errors.Join(errFull, err)
+			errFull = errors.Join(errFull, err)
 		}
 	}
 
@@ -103,62 +106,103 @@ func SendAllAlertNotifs(ctx context.Context, data map[string]any) error {
 }
 
 func SendNotif(ctx context.Context, botToken string, chatId int, data map[string]any, templatePath string) error {
-	url := fmt.Sprintf("https://api.telegram.org/bot%v/sendMessage?chat_id=%v", botToken, chatId)
-
 	errCh := make(chan error)
-	var err error
 
 	var msgTemplate *template.Template
 	go func() {
+		var err error
 		msgTemplate, err = template.ParseFiles(templatePath)
 		errCh <- err
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err = <-errCh:
+	case err := <-errCh:
 		if err != nil {
 			return fmt.Errorf("SendNotif: %v", err)
 		}
 	}
 
-	var buffer bytes.Buffer
+	var message string
 	go func() {
-		err = msgTemplate.Execute(&buffer, data)
+		var builder strings.Builder
+		err := msgTemplate.Execute(&builder, data)
+		message = builder.String()
+		if err == nil && len(message) == 0 {
+			err = fmt.Errorf("empty message after template execution")
+		}
 		errCh <- err
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err = <-errCh:
+	case err := <-errCh:
 		if err != nil {
 			return fmt.Errorf("SendNotif: %v", err)
 		}
 	}
 
+	var jsonPayload []byte
+	go func() {
+		var err error
+		jsonPayload, err = json.Marshal(map[string]any{"chat_id": chatId, "text": message})
+		if err == nil && len(jsonPayload) == 0 {
+			err = fmt.Errorf("empty JSON payload after marshalling")
+		}
+		errCh <- err
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("SendNotif: %v", err)
+		}
+	}
+
+	url := fmt.Sprintf("https://api.telegram.org/bot%v/sendMessage", botToken)
 	var response *http.Response
 	go func() {
-		response, err = http.Post(url, "application/json", &buffer)
+		// request, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonPayload))
+		// request.ContentLength = int64(len(jsonPayload))
+		// response, err = http.DefaultClient.Do(request)
+		var err error
+		response, err = http.Post(url, "application/json", bytes.NewReader(jsonPayload))
 		errCh <- err
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err = <-errCh:
+	case err := <-errCh:
 		if err != nil {
 			return fmt.Errorf("SendNotif: %v", err)
 		}
 	}
+	defer response.Body.Close()
 
 	var body []byte
 	go func() {
-		_, err = response.Body.Read(body)
+		var err error
+		body, err = io.ReadAll(response.Body)
 		errCh <- err
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err = <-errCh:
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("SendNotif: %v", err)
+		}
+	}
+
+	go func() {
+		err := response.Body.Close()
+		errCh <- err
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
 		if err != nil {
 			return fmt.Errorf("SendNotif: %v", err)
 		}
@@ -166,13 +210,13 @@ func SendNotif(ctx context.Context, botToken string, chatId int, data map[string
 
 	bodyData := make(map[string]any)
 	go func() {
-		err = json.Unmarshal(body, &bodyData)
+		err := json.Unmarshal(body, &bodyData)
 		errCh <- err
 	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case err = <-errCh:
+	case err := <-errCh:
 		if err != nil {
 			return fmt.Errorf("SendNotif: %v", err)
 		}
@@ -183,27 +227,24 @@ func SendNotif(ctx context.Context, botToken string, chatId int, data map[string
 		return fmt.Errorf("SendNotif: ok field expected in response")
 	}
 
-	responseOk, ok := responseOkAny.(string)
+	responseOk, ok := responseOkAny.(bool)
 	if !ok {
 		return fmt.Errorf("SendNotif: can't convert ok field to string")
 	}
 
-	switch responseOk {
-	case "True":
-		return nil
-	case "False":
+	if !responseOk {
 		responseDescAny, ok := bodyData["description"]
 		if !ok {
-			return fmt.Errorf("SendNotif: response failed due to unknown error")
+			return fmt.Errorf("SendNotif: Telegram API response failed due to unknown error")
 		} else {
 			responseDesc, ok := responseDescAny.(string)
 			if !ok {
-				return fmt.Errorf("SendNotif: response failed due to error that can't be converted to string")
+				return fmt.Errorf("SendNotif: Telgram API response failed due to error that can't be converted to string")
 			} else {
-				return fmt.Errorf("SendNotif: response failed: %v", responseDesc)
+				return fmt.Errorf("SendNotif: Telegram API response failed with description: %v", responseDesc)
 			}
 		}
-	default:
-		return fmt.Errorf("response ok field neither True nor False")
 	}
+
+	return nil
 }

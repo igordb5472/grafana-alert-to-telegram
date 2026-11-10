@@ -42,6 +42,9 @@ func HandleAlert(w http.ResponseWriter, req *http.Request) {
 	go func() {
 		err := json.Unmarshal(body, &data)
 		if ctx.Err() == nil {
+			if err == nil && len(data) == 0 {
+				err = fmt.Errorf("received JSON payload must be non-empty")
+			}
 			errCh <- err
 		}
 	}()
