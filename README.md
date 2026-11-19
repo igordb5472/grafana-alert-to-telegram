@@ -18,7 +18,7 @@ You must allow the bot to send messages. Ensure you've done it in every chat whe
 
 ### 2.1) Download one of ga2tg releases to your machine:
 
-To download the latest one, proceed to the [latest release page](https://github.com/igordb5472/releases/latest/download) and download `.zip` or `.tar.gz` archive depending on which one is more convinient for you to extract. Extract the archive. After extracting you will have a strictly structured folder:
+To download the latest one, proceed to the [latest release page](https://github.com/igordb5472/grafana-alert-to-telegram/releases/tag/v1.0.0-beta) and download `ga2tg-<version>.zip` or `ga2tg-<version>.tar.gz` archive depending on which one is more convinient for you to extract. Extract the archive. After extracting you will have a strictly structured folder:
 
 ```
 ga2tg-<version>/
