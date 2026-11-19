@@ -1,0 +1,15 @@
+{
+    "id": 123,
+    "token": "123:...",
+    "alertNotifTemplate": "alertNotif.tmpl",
+    "dutyNotifTemplate": "dutyNotif.tmpl",
+    "dutySched": "dutySched.json",
+    "chats": [
+        {
+            "id": -123,
+            "alertNotifTemplate": "alertNotif.tmpl",
+            "dutyNotifTemplate": "dutyNotif.tmpl",
+            "dutySched": "dutySched.json"
+        }
+    ]
+}

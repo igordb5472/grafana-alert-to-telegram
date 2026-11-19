@@ -1,7 +1,7 @@
-package config
+package service
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"grafana-alert-to-telegram/src/domain"
 	"os"
@@ -9,10 +9,12 @@ import (
 	"strings"
 )
 
+var Bots []*domain.Bot
+
 func GetBots() ([]*domain.Bot, error) {
 	baseDir, ok := os.LookupEnv("BASE_DIR")
 	if !ok {
-		return nil, fmt.Errorf("GetBots: failed to get BASE_DIR from .env")
+		return nil, fmt.Errorf("GetBots: failed to load BASE_DIR from env")
 	}
 	settingsDir, err := filepath.Abs(baseDir + "/settings")
 	if err != nil {
@@ -30,7 +32,7 @@ func GetBots() ([]*domain.Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("GetBots: %v", err)
 	}
-	dutyScheduleDir, err := filepath.Abs(settingsDir + "/duty-schedules")
+	dutySchedDir, err := filepath.Abs(settingsDir + "/duty-scheds")
 	if err != nil {
 		return nil, fmt.Errorf("GetBots: %v", err)
 	}
@@ -93,17 +95,17 @@ func GetBots() ([]*domain.Bot, error) {
 			}
 		}
 
-		var dutySchedule []*domain.DutyNotif
-		dutyScheduleFile := botInput.DutyScheduleFile
-		if len(dutyScheduleFile) != 0 {
-			if !strings.HasSuffix(dutyScheduleFile, ".json") {
-				return nil, fmt.Errorf("GetBots: dutySchedule must end with .json in %v", botConfigFile)
+		var dutySched []*domain.DutyNotif
+		dutySchedFile := botInput.DutySchedFile
+		if len(dutySchedFile) != 0 {
+			if !strings.HasSuffix(dutySchedFile, ".json") {
+				return nil, fmt.Errorf("GetBots: dutySched must end with .json in %v", botConfigFile)
 			}
-			dutySchedulePath, err := filepath.Abs(dutyScheduleDir + "/" + dutyScheduleFile)
+			dutySchedPath, err := filepath.Abs(dutySchedDir + "/" + dutySchedFile)
 			if err != nil {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
-			dutySchedule, err = getDutySchedule(dutySchedulePath)
+			dutySched, err = getDutySched(dutySchedPath)
 			if err != nil {
 				return nil, fmt.Errorf("GetBots: %v in %v", err, botConfigFile)
 			}
@@ -126,7 +128,7 @@ func GetBots() ([]*domain.Bot, error) {
 			Token:                  token,
 			AlertNotifTemplatePath: alertNotifTemplatePath,
 			DutyNotifTemplatePath:  dutyNotifTemplatePath,
-			DutySchedule:           dutySchedule,
+			DutySched:              dutySched,
 			Chats:                  chats,
 		})
 	}

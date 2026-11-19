@@ -1,33 +1,31 @@
 package util
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 )
 
 func ValidDate(date string) (bool, error) {
-	if len(date) != 10 {
-		return false, nil
-	}
-	valid, err := regexp.MatchString(`\d\d.\d\d.\d\d\d\d`, date)
+	valid, err := regexp.MatchString(`^\d\d.\d\d.\d\d\d\d$`, date)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidDate: %v", err)
 	}
 	if !valid {
 		return false, nil
 	}
 	dd, err := strconv.Atoi(date[:2])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidDate: %v", err)
 	}
 	mm, err := strconv.Atoi(date[3:5])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidDate: %v", err)
 	}
 	yyyy, err := strconv.Atoi(date[6:])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidDate: %v", err)
 	}
 	if dd < 1 {
 		return false, nil
@@ -53,56 +51,63 @@ func ValidDate(date string) (bool, error) {
 }
 
 func ValidNotifTime(notifTime string) (bool, error) {
-	if len(notifTime) != 5 {
-		return false, nil
-	}
-	valid, err := regexp.MatchString(`\d\d:\d\d`, notifTime)
+	valid, err := regexp.MatchString(`^\d\d:\d\d$`, notifTime)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidNotifTime: %v", err)
 	}
 	if !valid {
 		return false, nil
 	}
 	hh, err := strconv.Atoi(notifTime[:2])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidNotifTime: %v", err)
 	}
 	mm, err := strconv.Atoi(notifTime[3:])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidNotifTime: %v", err)
 	}
 	return hh < 24 && mm < 60, nil
 }
 
 func ValidTimezone(timezone string) (bool, error) {
-	if len(timezone) != 9 {
-		return false, nil
-	}
-	valid, err := regexp.MatchString(`UTC[+-]\d\d:\d\d`, timezone)
+	valid, err := regexp.MatchString(`^UTC[+-]\d\d:\d\d$`, timezone)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidTimezone: %v", err)
 	}
 	if !valid {
 		return false, nil
 	}
 	hh, err := strconv.Atoi(timezone[4:6])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidTimezone: %v", err)
 	}
 	mm, err := strconv.Atoi(timezone[7:])
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidTimezone: %v", err)
 	}
 	return hh < 24 && mm < 60, nil
 }
 
 func ValidRepeat(repeat string) (bool, error) {
-	valid, err := regexp.MatchString(`\d+[hdw]`, repeat)
+	valid, err := regexp.MatchString(`^[1-9]\d*[mhdw]$`, repeat)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ValidRepeat: %v", err)
 	}
 	if !valid {
 		return false, nil
+	}
+	return true, nil
+}
+
+func ValidUsers(usernames []string) (bool, error) {
+	for _, username := range usernames {
+		valid, err := regexp.MatchString(`^@[A-Za-z0-9_]{5,32}$`, username)
+		if err != nil {
+			return false, fmt.Errorf("ValidUsers: %v", err)
+		}
+		if !valid {
+			return false, nil
+		}
 	}
 	return true, nil
 }

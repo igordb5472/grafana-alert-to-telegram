@@ -7,7 +7,7 @@ type Bot struct {
 	Token                  string
 	AlertNotifTemplatePath string
 	DutyNotifTemplatePath  string
-	DutySchedule           []*DutyNotif
+	DutySched              []*DutyNotif
 	Chats                  []*Chat
 }
 
@@ -15,11 +15,11 @@ type Chat struct {
 	Id                     int
 	AlertNotifTemplatePath string
 	DutyNotifTemplatePath  string
-	DutySchedule           []*DutyNotif
+	DutySched              []*DutyNotif
 }
 
 type DutyNotif struct {
-	Date   time.Time
-	Repeat string
-	Users  []string
+	Date      time.Time
+	Repeat    string
+	Usernames []string
 }

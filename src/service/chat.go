@@ -1,4 +1,4 @@
-package config
+package service
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func getChats(chatsInput []domain.ChatInput) ([]*domain.Chat, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getChats: %v", err)
 	}
-	dutyScheduleDir, err := filepath.Abs(settingsDir + "/duty-schedules")
+	dutySchedDir, err := filepath.Abs(settingsDir + "/duty-scheds")
 	if err != nil {
 		return nil, fmt.Errorf("getChats: %v", err)
 	}
@@ -63,17 +63,17 @@ func getChats(chatsInput []domain.ChatInput) ([]*domain.Chat, error) {
 			}
 		}
 
-		var dutySchedule []*domain.DutyNotif
-		dutyScheduleFile := chatInput.DutyScheduleFile
-		if len(dutyScheduleFile) != 0 {
-			if !strings.HasSuffix(dutyScheduleFile, ".json") {
-				return nil, fmt.Errorf("getChats: dutySchedule must end with .json")
+		var dutySched []*domain.DutyNotif
+		dutySchedFile := chatInput.DutySchedFile
+		if len(dutySchedFile) != 0 {
+			if !strings.HasSuffix(dutySchedFile, ".json") {
+				return nil, fmt.Errorf("getChats: dutySched must end with .json")
 			}
-			dutySchedulePath, err := filepath.Abs(dutyScheduleDir + "/" + dutyScheduleFile)
+			dutySchedPath, err := filepath.Abs(dutySchedDir + "/" + dutySchedFile)
 			if err != nil {
 				return nil, fmt.Errorf("getChats: %v", err)
 			}
-			dutySchedule, err = getDutySchedule(dutySchedulePath)
+			dutySched, err = getDutySched(dutySchedPath)
 			if err != nil {
 				return nil, fmt.Errorf("getChats: %v", err)
 			}
@@ -83,7 +83,7 @@ func getChats(chatsInput []domain.ChatInput) ([]*domain.Chat, error) {
 			Id:                     id,
 			AlertNotifTemplatePath: alertNotifTemplatePath,
 			DutyNotifTemplatePath:  dutyNotifTemplatePath,
-			DutySchedule:           dutySchedule,
+			DutySched:              dutySched,
 		})
 	}
 
