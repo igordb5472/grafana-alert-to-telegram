@@ -1,6 +1,6 @@
 # grafana-alert-to-telegram (ga2tg)
 
-Service that receives Grafana Alert JSON payloads (via webhook) and sends notifications to Telegram chats (via requests to Telegram Bot API). You can create and a custom message template and assign it to any chat or bot.
+Service that receives Grafana Alert JSON payloads (via webhook) and sends notifications to Telegram chats. You can create a custom message template and assign it to any chat or bot.
 
 ga2tg also supports duty schedules with usernames to tag in duty notification. You can create a duty schedule and assign it to any chat or bot as well.
 
